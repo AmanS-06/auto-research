@@ -63,6 +63,11 @@ uv.lock
 # !.env.example
 
 # Frontend
+
+# Docker
+.docker/
+
+# Frontend
 frontend/.next/
 frontend/node_modules/
 frontend/out/
@@ -75,6 +80,3 @@ frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/pnpm-debug.log*
-
-# Docker
-.docker/
