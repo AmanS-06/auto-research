@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ def setup_middleware(app: FastAPI) -> None:
     )
 
     app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(ErrorHandlingMiddleware)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -40,3 +42,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             elapsed,
         )
         return response
+
+
+class ErrorHandlingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        try:
+            return await call_next(request)
+        except Exception as e:
+            logger.exception("Unhandled error")
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Internal server error", "error": str(e)},
+            )
