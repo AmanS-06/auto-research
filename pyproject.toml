@@ -23,7 +23,6 @@ dependencies = [
     "alembic>=1.14.0,<2.0.0",
     "python-multipart>=0.0.12,<1.0.0",
     "email-validator>=2.2.0,<3.0.0",
-    "pybreaker>=1.0.0,<2.0.0",
 ]
 
 [project.optional-dependencies]

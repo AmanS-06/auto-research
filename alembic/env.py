@@ -15,6 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from app.models.research import ResearchJob, ResearchReport  # noqa: F401
 from app.core.config import settings  # noqa: F401
+from sqlmodel import SQLModel
 
 # this is the Alembic Config object
 config = context.config
@@ -33,9 +34,6 @@ if not database_url:
 config.set_main_option("sqlalchemy.url", database_url.replace("+asyncpg", ""))
 
 target_metadata = SQLModel.metadata
-
-# Import SQLModel after setting up the path
-from sqlmodel import SQLModel  # noqa: E402
 
 
 def run_migrations_offline() -> None:

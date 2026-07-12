@@ -128,8 +128,11 @@ async def init_db():
             raise ValueError(
                 "Database not configured. Set DATABASE_URL in .env before starting the server"
             )
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
+        # Only create tables directly in non-production environments.
+        # In production, Alembic migrations are the source of truth.
+        if settings.app_env != "production":
+            async with engine.begin() as conn:
+                await conn.run_sync(SQLModel.metadata.create_all)
     except ValueError as e:
         logger.error("Database initialization failed: %s", e)
         raise
