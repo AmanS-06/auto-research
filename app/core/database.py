@@ -108,6 +108,19 @@ def get_async_engine():
     return _get_async_engine()
 
 
+# Export for tests
+__all__ = [
+    "get_async_engine",
+    "get_session",
+    "init_db",
+    "create_tables",
+    "_get_async_engine",
+    "_pydantic_json_serializer",
+    "_get_database_url",
+    "_get_session_maker",
+]
+
+
 async def init_db():
     try:
         engine = _get_async_engine()

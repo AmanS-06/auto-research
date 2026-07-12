@@ -27,14 +27,12 @@ def client():
 
 
 @pytest.fixture
-def async_client():
+async def async_client():
     """AsyncClient fixture for FastAPI app."""
-    async def _get_client():
-        from httpx import AsyncClient
-        async with AsyncClient(app=app, base_url="http://test") as client:
-            yield client
-    
-    return _get_client()
+    from httpx import ASGITransport, AsyncClient
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
 
 
 @pytest.fixture
@@ -55,6 +53,7 @@ def override_get_session(mock_session):
     app.dependency_overrides.clear()
 
 
+@patch("app.api.v1.research.run_research_pipeline")
 class TestCreateResearch:
     """Test research creation endpoint."""
 
@@ -303,9 +302,9 @@ class TestHealth:
 
     def test_health_endpoint(self, client):
         """Test health endpoint."""
-        response = client.get("/health")
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
-        assert response.json()["status"] == "healthy"
+        assert response.json()["status"] == "ok"
 
     def test_root_endpoint(self, client):
         """Test root endpoint."""
@@ -319,32 +318,29 @@ class TestHealth:
 class TestAsyncClientIntegration:
     """Test API endpoints with httpx.AsyncClient."""
 
-    async def test_async_create_research_success(self, async_client):
+    async def test_async_create_research_success(self, async_client, mock_session, override_get_session):
         """Test async API client creates research job."""
-        job_id = uuid.uuid4()
-        
-        async with async_client as client:
-            response = await client.post(
-                "/api/v1/research",
-                json={"question": "Test async API"},
-            )
-            assert response.status_code == 202
-            data = response.json()
-            assert "job_id" in data
-            assert data["status"] == "pending"
+        response = await async_client.post(
+            "/api/v1/research",
+            json={"question": "Test async API"},
+        )
+        assert response.status_code == 202
+        data = response.json()
+        assert "job_id" in data
+        assert data["status"] == "pending"
 
-    async def test_async_get_status_success(self, async_client):
-        """Test async API client retrieves job status."""
-        job_id = uuid.uuid4()
+    async def test_async_get_status_success(self, async_client, mock_session, override_get_session):
+            """Test async API client retrieves job status."""
+            job_id = uuid.uuid4()
+            mock_session.get.return_value = None
         
-        async with async_client as client:
-            response = await client.get(f"/api/v1/research/{job_id}/status")
+            response = await async_client.get(f"/api/v1/research/{job_id}/status")
             assert response.status_code == 404
             assert "not found" in response.json()["detail"].lower()
 
 
 @patch("app.api.v1.research.run_research_pipeline")
-def test_route_handler_with_real_client(mock_run_pipeline):
+def test_route_handler_with_real_client(mock_run_pipeline, mock_session, override_get_session):
     """Test route handler with real client to verify end-to-end behavior."""
     client = TestClient(app)
     

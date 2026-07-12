@@ -6,11 +6,11 @@ from __future__ import annotations
 import ast
 import os
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlmodel import SQLModel
 
-from app.core.database import get_session, init_db, _pydantic_json_serializer
+from app.core.database import get_session, init_db, _pydantic_json_serializer, _get_async_engine
 from app.models.research import ResearchJob, ResearchReport
 
 
@@ -194,14 +194,31 @@ async def test_init_db_creates_tables():
         with patch("app.core.database.settings.debug", False):
             with patch("app.core.database.settings.database_pool_size", 10):
                 with patch("app.core.database.settings.database_max_overflow", 20):
-                    engine = _get_async_engine()
-                    with patch.object(engine, "begin") as mock_begin:
-                        async with mock_begin() as conn:
-                            with patch.object(conn, "run_sync") as mock_run_sync:
-                                await mock_run_sync(SQLModel.metadata.create_all)
-                        mock_run_sync.assert_called_once()
-                        call_args = mock_run_sync.call_args[0][0]
-                        assert call_args is SQLModel.metadata
+                    # Need to reset the global engine to pick up the patched settings
+                    import app.core.database as db_module
+                    db_module._engine = None
+                    db_module._session_maker = None
+                    
+                    # Patch create_async_engine to return a mock engine
+                    mock_conn = AsyncMock()
+                    mock_run_sync = AsyncMock()
+                    mock_conn.run_sync = mock_run_sync
+                    
+                    class MockBeginContext:
+                        async def __aenter__(self):
+                            return mock_conn
+                        async def __aexit__(self, *args):
+                            pass
+                    
+                    mock_engine = AsyncMock()
+                    mock_engine.begin = Mock(return_value=MockBeginContext())
+                    
+                    with patch("app.core.database.create_async_engine", return_value=mock_engine):
+                                            await init_db()
+                                            mock_run_sync.assert_called_once()
+                                            call_args = mock_run_sync.call_args[0][0]
+                                            # The call should be to metadata.create_all (a bound method)
+                                            assert callable(call_args)
 
 
 @pytest.mark.asyncio

@@ -219,9 +219,9 @@ class TestGetResearch:
 
 class TestHealth:
     def test_health_endpoint(self, client):
-        response = client.get("/health")
+        response = client.get("/api/v1/health")
         assert response.status_code == 200
-        assert response.json()["status"] == "healthy"
+        assert response.json()["status"] == "ok"
 
     def test_root_endpoint(self, client):
         response = client.get("/")

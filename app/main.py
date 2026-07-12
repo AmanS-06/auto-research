@@ -9,9 +9,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import research
+from app.api.v1 import research, health
 from app.core.config import settings
 from app.core.database import get_async_engine, init_db
+from app.core.middleware import setup_middleware
 from app.services.checkpoint import close_checkpointer
 
 logging.basicConfig(level=settings.log_level)
@@ -37,33 +38,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Set up middleware (CORS + request logging)
+setup_middleware(app)
 
-
-@app.middleware("http")
-async def error_handling_middleware(request: Request, call_next):
-    try:
-        return await call_next(request)
-    except Exception as e:
-        logger.exception("Unhandled error")
-        return JSONResponse(
-            status_code=500,
-            content={"detail": "Internal server error", "error": str(e)},
-        )
-
-
+# Include routers
 app.include_router(research.router, prefix="/api/v1", tags=["research"])
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
+app.include_router(health.router, prefix="/api/v1", tags=["health"])
 
 
 @app.get("/")

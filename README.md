@@ -59,8 +59,6 @@ A multi-agent research system built with **FastAPI**, **LangGraph**, **PostgreSQ
 - **LLM**: Any OpenAI-compatible endpoint (default: OpenRouter with NVIDIA Nemotron 3 Ultra free)
 - **Search**: Serper API (Google Search)
 - **Database**: PostgreSQL + SQLModel
-- **Containerization**: Docker + Docker Compose
-- **Frontend**: Next.js 16 + React 19 + Tailwind v4 (in `frontend/`)
 
 > **OpenRouter / Nemotron 3 Ultra (free) caveat.** OpenRouter's Models API currently advertises `tools` / `tool_choice` for `nvidia/nemotron-3-ultra-550b-a55b:free` but does **not** advertise `response_format` / `structured_outputs`. Our agents use LangChain's `with_structured_output()` which the OpenAI Python client may map to either tool calling or `response_format` depending on the schema. If you see `Pydantic validation` or `JSONDecodeError` coming back from the LLM, switch to a model that advertises `structured_outputs` (e.g. the paid Nemotron 3 Ultra entry, or `openai/gpt-4o-mini`).
 
@@ -70,7 +68,8 @@ A multi-agent research system built with **FastAPI**, **LangGraph**, **PostgreSQ
 
 ### Prerequisites
 
-- Docker & Docker Compose
+- Python 3.11+
+- PostgreSQL database
 - An OpenAI-compatible API key (OpenRouter / OpenAI / DeepSeek / ...)
 - Serper API key
 
@@ -90,14 +89,6 @@ cp .env.example .env
 | `LLM_MODEL`        | Model name (default: Nemotron 3 Ultra free on OpenRouter) |
 | `SERPER_API_KEY`   | Serper API key                                         |
 | `DATABASE_URL`     | PostgreSQL asyncpg DSN                                 |
-
-### Run with Docker
-
-```bash
-docker-compose up -d
-```
-
-API available at `http://localhost:8000`. Migrations are applied via the canonical `alembic/versions/0001_initial.py`.
 
 ### Local Development
 
