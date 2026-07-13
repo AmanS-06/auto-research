@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from functools import lru_cache
-
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_openai import ChatOpenAI
+from typing import Optional
 
 from app.core.config import Settings
 from app.core.config import settings as default_settings
+
+from langchain_openai import ChatOpenAI
 
 
 class LLMConfigError(RuntimeError):
@@ -20,7 +20,7 @@ def _build_llm(
     *,
     temperature: float | None,
     max_tokens: int | None,
-) -> BaseChatModel:
+):
     if not settings.llm_api_key:
         raise LLMConfigError("LLM_API_KEY is not set. Add it to your environment or .env file.")
 
@@ -40,13 +40,13 @@ def get_llm(
     temperature: float | None = None,
     max_tokens: int | None = None,
     settings: Settings | None = None,
-) -> BaseChatModel:
+):
     cfg = settings or default_settings
     return _build_llm(cfg, temperature=temperature, max_tokens=max_tokens)
 
 
 @lru_cache
-def get_default_llm() -> BaseChatModel:
+def get_default_llm():
     return get_llm()
 
 
@@ -56,14 +56,20 @@ def reset_llm_cache() -> None:
 
 
 class LLMFactory:
-    _instance: BaseChatModel | None = None
+    _instance: Optional[ChatOpenAI] = None
     _instance_temperature: float | None = None
+    _instance_model: str | None = None
 
     @classmethod
-    def get_llm(cls, temperature: float | None = None) -> BaseChatModel:
-        if cls._instance is None or cls._instance_temperature != temperature:
+    def get_llm(cls, temperature: float | None = None) -> ChatOpenAI:
+        cfg = default_settings
+        model = cfg.llm_model
+        if (cls._instance is None or
+            cls._instance_temperature != temperature or
+            cls._instance_model != model):
             cls._instance = get_llm(temperature=temperature)
             cls._instance_temperature = temperature
+            cls._instance_model = model
         return cls._instance
 
     @classmethod

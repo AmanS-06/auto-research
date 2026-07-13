@@ -26,12 +26,19 @@ if config.config_file_name is not None:
 
 # Get database URL from settings
 database_url = settings.database_url
+database_url_sync = settings.database_url_sync
 
 if not database_url:
     raise RuntimeError("DATABASE_URL is not configured. Please set DATABASE_URL in your .env file.")
 
 # Replace the sqlalchemy.url in alembic config with our database URL
-config.set_main_option("sqlalchemy.url", database_url.replace("+asyncpg", ""))
+# Use sync URL if provided, otherwise derive from async URL (escaping % for configparser)
+if database_url_sync:
+    sync_url = database_url_sync.replace("%", "%%")
+else:
+    sync_url = database_url.replace("+asyncpg", "").replace("%", "%%")
+
+config.set_main_option("sqlalchemy.url", sync_url)
 
 target_metadata = SQLModel.metadata
 

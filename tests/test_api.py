@@ -84,6 +84,70 @@ class TestCreateResearch:
         assert response.status_code == 422
 
 
+class TestListResearch:
+    def test_returns_paginated_list(self, client, mock_session, override_get_session):
+        from unittest.mock import MagicMock
+
+        from app.models.research import ResearchJob
+
+        job1 = ResearchJob(question="Q1?", status="complete")
+        job2 = ResearchJob(question="Q2?", status="pending")
+
+        count_result = MagicMock()
+        count_result.scalar_one.return_value = 2
+
+        jobs_result = MagicMock()
+        jobs_result.scalars.return_value.all.return_value = [job1, job2]
+
+        results = iter([count_result, jobs_result])
+
+        async def mock_execute_fn(*a, **kw):
+            return next(results)
+
+        mock_session.execute = mock_execute_fn
+
+        response = client.get("/api/v1/research")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 2
+        assert data["limit"] == 20
+        assert data["offset"] == 0
+        assert len(data["items"]) == 2
+        assert data["items"][0]["question"] == "Q1?"
+
+    def test_respects_limit_and_offset_query_params(
+            self, client, mock_session, override_get_session
+        ):
+            from unittest.mock import MagicMock
+
+            count_result = MagicMock()
+            count_result.scalar_one.return_value = 0
+            jobs_result = MagicMock()
+            jobs_result.scalars.return_value.all.return_value = []
+            results = iter([count_result, jobs_result])
+
+            async def mock_execute_fn(*a, **kw):
+                try:
+                    return next(results)
+                except StopIteration:
+                    return jobs_result
+
+            mock_session.execute = mock_execute_fn
+
+            response = client.get("/api/v1/research?limit=5&offset=10")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["limit"] == 5
+            assert data["offset"] == 10
+    def test_rejects_limit_over_cap(self, client, override_get_session):
+        response = client.get("/api/v1/research?limit=500")
+        assert response.status_code == 422
+
+    def test_rejects_negative_offset(self, client, override_get_session):
+        response = client.get("/api/v1/research?offset=-1")
+        assert response.status_code == 422
+
+
 class TestGetResearchStatus:
     def test_returns_status_for_pending_job(self, client, mock_session, override_get_session):
         from app.models.research import ResearchJob

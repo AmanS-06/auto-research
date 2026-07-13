@@ -72,6 +72,15 @@ class ResearchJobResponse(BaseModel):
     updated_at: datetime
 
 
+class ResearchJobListResponse(BaseModel):
+    """Paginated list payload for ``GET /api/v1/research``."""
+
+    items: list[ResearchJobResponse]
+    total: int
+    limit: int
+    offset: int
+
+
 class ResearchReportResponse(BaseModel):
     job_id: UUID
     status: Literal["pending", "running", "complete", "failed"]

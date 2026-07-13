@@ -3,13 +3,20 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.core.database import get_session
 from app.models.research import ResearchJob, ResearchReport
-from app.schemas.research import ResearchJobStatus, ResearchRequest, ResearchResponse
+from app.schemas.research import (
+    ResearchJobListResponse,
+    ResearchJobResponse,
+    ResearchJobStatus,
+    ResearchRequest,
+    ResearchResponse,
+)
 from app.services.research_service import ResearchService
 
 logger = logging.getLogger(__name__)
@@ -65,6 +72,42 @@ async def run_research_pipeline(job_id: UUID, request: ResearchRequest):
                     logger.info("Job %s marked as failed in DB", job_id)
         except Exception as db_exc:
             logger.exception("Could not mark job %s as failed in DB: %s", job_id, db_exc)
+
+
+@router.get("/research", response_model=ResearchJobListResponse)
+async def list_research(
+    limit: int = Query(20, ge=1, le=100, description="Page size."),
+    offset: int = Query(0, ge=0, description="Number of jobs to skip."),
+    session: AsyncSession = Depends(get_session),
+):
+    """List research jobs, newest first, for the history view."""
+    count_result = await session.execute(select(func.count()).select_from(ResearchJob))
+    total = count_result.scalar_one()
+
+    jobs_result = await session.execute(
+        select(ResearchJob)
+        .order_by(ResearchJob.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    jobs = jobs_result.scalars().all()
+
+    return ResearchJobListResponse(
+        items=[
+            ResearchJobResponse(
+                job_id=job.id,
+                question=job.question,
+                status=job.status,
+                error=job.error,
+                created_at=job.created_at,
+                updated_at=job.updated_at,
+            )
+            for job in jobs
+        ],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/research/{job_id}", response_model=ResearchResponse)
